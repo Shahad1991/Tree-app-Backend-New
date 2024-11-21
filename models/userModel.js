@@ -16,7 +16,11 @@ const deleteUser = (id, callback) => {
 };
 
 const getUsersWithPoints = (callback) => {
-    const sql = 'SELECT u.user_id, u.name, p.points FROM users u JOIN points p ON u.user_id = p.user_id';
+    const sql = `
+        SELECT u.user_id, u.name, p.points
+        FROM users u
+        LEFT JOIN points p ON u.user_id = p.user_id
+    `;
     db.query(sql, callback);
 };
 
