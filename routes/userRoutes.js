@@ -1,10 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
+const { verifyToken } = require('../controllers/authController');
 
-router.post('/users', userController.createUser);
-router.put('/users/:id', userController.updateUser);
-router.delete('/users/:id', userController.deleteUser);
-router.get('/users-with-points', userController.getUsersWithPoints);
+router.post('/saveUserData', verifyToken, userController.saveUserData);
 
 module.exports = router;

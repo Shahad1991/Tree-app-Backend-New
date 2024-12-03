@@ -1,40 +1,33 @@
-const userModel = require('../models/userModel');
+const db = require('../config/db');
 
-const createUser = (req, res) => {
-    const { name } = req.body;
-    userModel.createUser(name, (err, result) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json({ id: result.insertId, name });
-    });
-};
+const saveUserData = (req, res) => {
+    const { points, level } = req.body;
+    const userId = req.userId; // Hent userId fra token
+    console.log('Received data:', req.body); // Debug-udskrift
 
-const updateUser = (req, res) => {
-    const { id } = req.params;
-    const { name } = req.body;
-    userModel.updateUser(id, name, (err) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json({ message: 'User updated successfully' });
-    });
-};
+    const userSql = `
+        UPDATE users SET level = ? WHERE user_id = ?
+    `;
+    const pointsSql = `
+        INSERT INTO points (user_id, points) VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE points = ?
+    `;
 
-const deleteUser = (req, res) => {
-    const { id } = req.params;
-    userModel.deleteUser(id, (err) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json({ message: 'User deleted successfully' });
-    });
-};
-
-const getUsersWithPoints = (req, res) => {
-    userModel.getUsersWithPoints((err, users) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(users);
+    db.query(userSql, [level, userId], (err, result) => {
+        if (err) {
+            console.error('Error saving user data:', err);
+            return res.status(500).json({ error: err });
+        }
+        db.query(pointsSql, [userId, points, points], (err, result) => {
+            if (err) {
+                console.error('Error saving points:', err);
+                return res.status(500).json({ error: err });
+            }
+            res.json({ message: 'User data and points saved successfully' });
+        });
     });
 };
 
 module.exports = {
-    createUser,
-    updateUser,
-    deleteUser,
-    getUsersWithPoints
+    saveUserData
 };

@@ -1,10 +1,10 @@
 const db = require('../config/db');
 
-const getChecklistsByCategory = (category, callback) => {
-    const sql = 'SELECT * FROM checklists WHERE category = ?';
-    db.query(sql, [category], callback);
+const getChecklistsByCategoryAndLevel = (category, level, callback) => {
+    const sql = 'SELECT * FROM checklists WHERE category = ? AND level = ?';
+    db.query(sql, [category, level], callback);
 };
 
 module.exports = {
-    getChecklistsByCategory
+    getChecklistsByCategoryAndLevel
 };
