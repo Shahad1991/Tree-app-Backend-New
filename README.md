@@ -1,4 +1,5 @@
 # Tree-app-Backend
+
 - Opret Database:
 Først skal du oprette en database i MySQL:
  CREATE DATABASE tree_app_db;
@@ -80,3 +81,4 @@ Først skal du oprette en database i MySQL:
 );
  
   
+
