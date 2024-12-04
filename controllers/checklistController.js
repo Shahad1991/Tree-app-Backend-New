@@ -1,9 +1,9 @@
 const checklistModel = require('../models/checklistModel');
 
 const getChecklistsByCategoryAndLevel = (req, res) => {
-    const { category, level } = req.params;
-    console.log(`Fetching checklists for category: ${category}, level: ${level}`);
-    checklistModel.getChecklistsByCategoryAndLevel(category, level, (err, checklists) => {
+    const { categoryId, level } = req.params;
+    console.log(`Fetching checklists for category ID: ${categoryId}, level: ${level}`);
+    checklistModel.getChecklistsByCategoryAndLevel(categoryId, level, (err, checklists) => {
         if (err) {
             console.error('Error fetching checklists:', err);
             return res.status(500).json({ error: err });
