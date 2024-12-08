@@ -2,20 +2,65 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// Function to hash the password
+const hashPassword = (password) => {
+    const salt = bcrypt.genSaltSync(10);
+    return bcrypt.hashSync(password, salt);
+};
+
 const registerUser = (req, res) => {
-    const { name, password } = req.body;
-    const hashedPassword = bcrypt.hashSync(password, 8);
+    const { name, password, email, phone } = req.body;
+    const hashedPassword = hashPassword(password);
 
     const userSql = `
-        INSERT INTO users (name, password, level, points) VALUES (?, ?, 1, 0)
+        INSERT INTO users (name, password, email, phone)
+        VALUES (?, ?, ?, ?)
     `;
 
-    db.query(userSql, [name, hashedPassword], (err, result) => {
+    db.query(userSql, [name, hashedPassword, email, phone], (err, result) => {
         if (err) {
             console.error('Error registering user:', err);
             return res.status(500).json({ error: err });
         }
-        res.json({ message: 'User registered successfully' });
+
+        const userId = result.insertId;
+
+        const levelSql = `
+            INSERT INTO user_levels (user_id, level)
+            VALUES (?, ?)
+        `;
+
+        const pointsSql = `
+            INSERT INTO user_points (user_id, points)
+            VALUES (?, ?)
+        `;
+
+        db.query(levelSql, [userId, 1], (err) => {
+            if (err) {
+                console.error('Error inserting user level:', err);
+                return res.status(500).json({ error: err });
+            }
+        });
+
+        db.query(pointsSql, [userId, 0], (err) => {
+            if (err) {
+                console.error('Error inserting user points:', err);
+                return res.status(500).json({ error: err });
+            }
+        });
+
+        const token = jwt.sign({ id: userId }, 'secret', { expiresIn: 86400 }); // 24 hours
+
+        const user = {
+            id: userId,
+            name,
+            email,
+            phone,
+            level: 1,
+            points: 0
+        };
+
+        res.json({ auth: true, token, user });
     });
 };
 
@@ -44,17 +89,54 @@ const loginUser = (req, res) => {
 
         const token = jwt.sign({ id: user.user_id }, 'secret', { expiresIn: 86400 }); // 24 hours
 
-        // Hent brugerens niveau og point
-        const userLevel = user.level;
-        const userPoints = user.points || 0;
+        const levelSql = `
+            SELECT level FROM user_levels WHERE user_id = ?
+        `;
 
-        res.json({ auth: true, token, name: user.name, level: userLevel, points: userPoints });
+        const pointsSql = `
+            SELECT points FROM user_points WHERE user_id = ?
+        `;
+
+        db.query(levelSql, [user.user_id], (err, levelResults) => {
+            if (err) {
+                console.error('Error fetching user level:', err);
+                return res.status(500).json({ error: err });
+            }
+
+            const level = levelResults.length > 0 ? levelResults[0].level : 1;
+
+            db.query(pointsSql, [user.user_id], (err, pointsResults) => {
+                if (err) {
+                    console.error('Error fetching user points:', err);
+                    return res.status(500).json({ error: err });
+                }
+
+                const points = pointsResults.length > 0 ? pointsResults[0].points : 0;
+
+                res.json({
+                    auth: true,
+                    token,
+                    user: {
+                        id: user.user_id,
+                        name: user.name,
+                        email: user.email,
+                        phone: user.phone,
+                        level,
+                        points
+                    }
+                });
+            });
+        });
     });
 };
 
 const getUsersWithPoints = (req, res) => {
     const userSql = `
-        SELECT name, level, points FROM users ORDER BY points DESC
+        SELECT u.name, l.level, p.points
+        FROM users u
+        JOIN user_levels l ON u.user_id = l.user_id
+        JOIN user_points p ON u.user_id = p.user_id
+        ORDER BY p.points DESC
     `;
 
     db.query(userSql, (err, results) => {
@@ -70,7 +152,11 @@ const getUserData = (req, res) => {
     const userId = req.userId;
 
     const userSql = `
-        SELECT name, level, points FROM users WHERE user_id = ?
+        SELECT u.user_id AS id, u.name, u.email, u.phone, l.level, p.points
+        FROM users u
+        JOIN user_levels l ON u.user_id = l.user_id
+        JOIN user_points p ON u.user_id = p.user_id
+        WHERE u.user_id = ?
     `;
 
     db.query(userSql, [userId], (err, results) => {
@@ -89,17 +175,29 @@ const updateUserPointsAndLevel = (req, res) => {
     const userId = req.userId;
     const { points, level } = req.body;
 
-    const updateSql = `
-        UPDATE users SET points = ?, level = ? WHERE user_id = ?
+    const updateLevelSql = `
+        UPDATE user_levels SET level = ? WHERE user_id = ?
     `;
 
-    db.query(updateSql, [points, level, userId], (err, result) => {
+    const updatePointsSql = `
+        UPDATE user_points SET points = ? WHERE user_id = ?
+    `;
+
+    db.query(updateLevelSql, [level, userId], (err) => {
         if (err) {
-            console.error('Error updating user points and level:', err);
+            console.error('Error updating user level:', err);
             return res.status(500).json({ error: err });
         }
-        res.json({ message: 'User points and level updated successfully' });
     });
+
+    db.query(updatePointsSql, [points, userId], (err) => {
+        if (err) {
+            console.error('Error updating user points:', err);
+            return res.status(500).json({ error: err });
+        }
+    });
+
+    res.json({ message: 'User points and level updated successfully' });
 };
 
 const verifyToken = (req, res, next) => {
