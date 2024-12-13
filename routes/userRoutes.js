@@ -1,8 +1,10 @@
 const express = require('express');
-const router = express.Router();
 const userController = require('../controllers/userController');
-const { verifyToken } = require('../controllers/authController');
+const authController = require('../controllers/authController');
+const router = express.Router();
 
-router.post('/saveUserData', verifyToken, userController.saveUserData);
+router.get('/users', userController.getUsersWithPoints);
+router.get('/user', authController.verifyToken, userController.getUserData);
+router.put('/user/points', authController.verifyToken, userController.updateUserPointsAndLevel);
 
 module.exports = router;
