@@ -1,33 +1,45 @@
-const db = require('../config/db');
+const userModel = require('../models/userModel');
 
-const saveUserData = (req, res) => {
-    const { points, level } = req.body;
-    const userId = req.userId; // Hent userId fra token
-    console.log('Received data:', req.body); // Debug-udskrift
-
-    const userSql = `
-        UPDATE users SET level = ? WHERE user_id = ?
-    `;
-    const pointsSql = `
-        INSERT INTO points (user_id, points) VALUES (?, ?)
-        ON DUPLICATE KEY UPDATE points = ?
-    `;
-
-    db.query(userSql, [level, userId], (err, result) => {
+const getUsersWithPoints = (req, res) => {
+    userModel.getUsersWithPoints((err, results) => {
         if (err) {
-            console.error('Error saving user data:', err);
+            console.error('Error fetching users:', err);
             return res.status(500).json({ error: err });
         }
-        db.query(pointsSql, [userId, points, points], (err, result) => {
-            if (err) {
-                console.error('Error saving points:', err);
-                return res.status(500).json({ error: err });
-            }
-            res.json({ message: 'User data and points saved successfully' });
-        });
+        res.json(results);
+    });
+};
+
+const getUserData = (req, res) => {
+    const userId = req.userId;
+
+    userModel.getUserById(userId, (err, results) => {
+        if (err) {
+            console.error('Error fetching user data:', err);
+            return res.status(500).json({ error: err });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        res.json(results[0]);
+    });
+};
+
+const updateUserPointsAndLevel = (req, res) => {
+    const userId = req.userId;
+    const { points, level } = req.body;
+
+    userModel.updateUserPointsAndLevel(userId, points, level, (err) => {
+        if (err) {
+            console.error('Error updating user points and level:', err);
+            return res.status(500).json({ error: err });
+        }
+        res.json({ message: 'User points and level updated successfully' });
     });
 };
 
 module.exports = {
-    saveUserData
+    getUsersWithPoints,
+    getUserData,
+    updateUserPointsAndLevel
 };

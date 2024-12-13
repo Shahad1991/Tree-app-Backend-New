@@ -1,66 +1,93 @@
-const bcrypt = require('bcrypt');
 const db = require('../config/db');
 
-const createUser = (name, password, callback) => {
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const sql = 'INSERT INTO users (name, password) VALUES (?, ?)';
-    db.query(sql, [name, hashedPassword], callback);
+const createUser = (name, hashedPassword, email, phone, callback) => {
+    const userSql = `
+        INSERT INTO users (name, password, email, phone)
+        VALUES (?, ?, ?, ?)
+    `;
+    db.query(userSql, [name, hashedPassword, email, phone], callback);
 };
 
-const updateUser = (id, name, password, callback) => {
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const sql = 'UPDATE users SET name = ?, password = ? WHERE user_id = ?';
-    db.query(sql, [name, hashedPassword, id], callback);
+const createUserLevel = (userId, callback) => {
+    const levelSql = `
+        INSERT INTO user_levels (user_id, level)
+        VALUES (?, ?)
+    `;
+    db.query(levelSql, [userId, 1], callback);
 };
 
-const deleteUser = (id, callback) => {
-    const sql = 'DELETE FROM users WHERE user_id = ?';
-    db.query(sql, [id], callback);
+const createUserPoints = (userId, callback) => {
+    const pointsSql = `
+        INSERT INTO user_points (user_id, points)
+        VALUES (?, ?)
+    `;
+    db.query(pointsSql, [userId, 0], callback);
+};
+
+const getUserByName = (name, callback) => {
+    const userSql = `
+        SELECT * FROM users WHERE name = ?
+    `;
+    db.query(userSql, [name], callback);
+};
+
+const getUserLevel = (userId, callback) => {
+    const levelSql = `
+        SELECT level FROM user_levels WHERE user_id = ?
+    `;
+    db.query(levelSql, [userId], callback);
+};
+
+const getUserPoints = (userId, callback) => {
+    const pointsSql = `
+        SELECT points FROM user_points WHERE user_id = ?
+    `;
+    db.query(pointsSql, [userId], callback);
 };
 
 const getUsersWithPoints = (callback) => {
-    const sql = `
-        SELECT u.user_id, u.name, p.points
+    const userSql = `
+        SELECT u.name, l.level, p.points
         FROM users u
-        LEFT JOIN points p ON u.user_id = p.user_id
+        JOIN user_levels l ON u.user_id = l.user_id
+        JOIN user_points p ON u.user_id = p.user_id
+        ORDER BY p.points DESC
     `;
-    db.query(sql, callback);
+    db.query(userSql, callback);
 };
 
-const getUserById = (id, callback) => {
-    const sql = 'SELECT user_id, name FROM users WHERE user_id = ?';
-    db.query(sql, [id], (err, results) => {
-        if (err) return callback(err);
-        if (results.length > 0) {
-            callback(null, results[0]);
-        } else {
-            callback(null, null);
-        }
-    });
+const getUserById = (userId, callback) => {
+    const userSql = `
+        SELECT u.user_id AS id, u.name, u.email, u.phone, l.level, p.points
+        FROM users u
+        JOIN user_levels l ON u.user_id = l.user_id
+        JOIN user_points p ON u.user_id = p.user_id
+        WHERE u.user_id = ?
+    `;
+    db.query(userSql, [userId], callback);
 };
 
-const authenticateUser = (name, password, callback) => {
-    const sql = 'SELECT user_id, name, password FROM users WHERE name = ?';
-    db.query(sql, [name], (err, results) => {
+const updateUserPointsAndLevel = (userId, points, level, callback) => {
+    const updateLevelSql = `
+        UPDATE user_levels SET level = ? WHERE user_id = ?
+    `;
+    const updatePointsSql = `
+        UPDATE user_points SET points = ? WHERE user_id = ?
+    `;
+    db.query(updateLevelSql, [level, userId], (err) => {
         if (err) return callback(err);
-        if (results.length > 0) {
-            const user = results[0];
-            if (bcrypt.compareSync(password, user.password)) {
-                callback(null, { user_id: user.user_id, name: user.name });
-            } else {
-                callback(null, null);
-            }
-        } else {
-            callback(null, null);
-        }
+        db.query(updatePointsSql, [points, userId], callback);
     });
 };
 
 module.exports = {
     createUser,
-    updateUser,
-    deleteUser,
+    createUserLevel,
+    createUserPoints,
+    getUserByName,
+    getUserLevel,
+    getUserPoints,
     getUsersWithPoints,
     getUserById,
-    authenticateUser
+    updateUserPointsAndLevel
 };
