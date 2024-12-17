@@ -1,7 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const userModel = require('../models/userModel');
-const admin = require('../firebaseConfig');
 const db = require('../config/db');
 
 // Function to hash the password
@@ -122,109 +121,8 @@ const verifyToken = (req, res, next) => {
     });
 };
 
-const firebaseAuth = async (req, res) => {
-    const { idToken } = req.body;
-
-    try {
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const uid = decodedToken.uid;
-        console.log('Firebase UID:', uid); // Log the Firebase UID
-
-        userModel.getUserByFirebaseUid(uid, (err, user) => {
-            if (err) {
-                console.error('Error fetching user:', err);
-                return res.status(500).json({ error: err });
-            }
-
-            if (user) {
-                // User exists, generate JWT
-                const token = jwt.sign({ id: user.user_id }, 'secret', { expiresIn: 86400 }); // 24 hours
-
-                // Fetch user level and points
-                userModel.getUserLevel(user.user_id, (err, levelResults) => {
-                    if (err) {
-                        console.error('Error fetching user level:', err);
-                        return res.status(500).json({ error: err });
-                    }
-
-                    const level = levelResults.length > 0 ? levelResults[0].level : 1;
-
-                    userModel.getUserPoints(user.user_id, (err, pointsResults) => {
-                        if (err) {
-                            console.error('Error fetching user points:', err);
-                            return res.status(500).json({ error: err });
-                        }
-
-                        const points = pointsResults.length > 0 ? pointsResults[0].points : 0;
-
-                        res.json({
-                            auth: true,
-                            token,
-                            user: {
-                                id: user.user_id,
-                                name: user.name,
-                                email: user.email,
-                                phone: user.phone,
-                                level,
-                                points
-                            }
-                        });
-                    });
-                });
-            } else {
-                // User does not exist, create new user
-                const newUser = {
-                    uid,
-                    name: decodedToken.name,
-                    email: decodedToken.email
-                };
-
-                userModel.createUserWithFirebase(newUser, (err, createdUser) => {
-                    if (err) {
-                        console.error('Error creating user:', err);
-                        return res.status(500).json({ error: err });
-                    }
-
-                    const token = jwt.sign({ id: createdUser.insertId }, 'secret', { expiresIn: 86400 }); // 24 hours
-
-                    // Create user level and points
-                    userModel.createUserLevel(createdUser.insertId, (err) => {
-                        if (err) {
-                            console.error('Error inserting user level:', err);
-                            return res.status(500).json({ error: err });
-                        }
-                    });
-
-                    userModel.createUserPoints(createdUser.insertId, (err) => {
-                        if (err) {
-                            console.error('Error inserting user points:', err);
-                            return res.status(500).json({ error: err });
-                        }
-                    });
-
-                    res.json({
-                        auth: true,
-                        token,
-                        user: {
-                            id: createdUser.insertId,
-                            name: newUser.name,
-                            email: newUser.email,
-                            level: 1,
-                            points: 0
-                        }
-                    });
-                });
-            }
-        });
-    } catch (error) {
-        console.error('Error verifying Firebase ID token:', error);
-        res.status(500).json({ error: 'Failed to authenticate with Firebase' });
-    }
-};
-
 module.exports = {
     registerUser,
     loginUser,
-    verifyToken,
-    firebaseAuth
+    verifyToken
 };

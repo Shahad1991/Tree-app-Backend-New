@@ -1,26 +1,27 @@
 const userModel = require('../models/userModel');
 
+const getUsersWithPoints = (req, res) => {
+    userModel.getUsersWithPoints((err, results) => {
+        if (err) {
+            console.error('Error fetching users:', err);
+            return res.status(500).json({ error: err });
+        }
+        res.json(results);
+    });
+};
+
 const getUserData = (req, res) => {
     const userId = req.userId;
 
     userModel.getUserById(userId, (err, results) => {
         if (err) {
             console.error('Error fetching user data:', err);
-            return res.status(500).json({ error: 'Failed to fetch user data' });
+            return res.status(500).json({ error: err });
         }
         if (results.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
         res.json(results[0]);
-    });
-};
-
-const getUsersWithPoints = (req, res) => {
-    userModel.getUsersWithPoints((err, users) => {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to fetch users' });
-        }
-        res.json(users);
     });
 };
 
@@ -31,29 +32,14 @@ const updateUserPointsAndLevel = (req, res) => {
     userModel.updateUserPointsAndLevel(userId, points, level, (err) => {
         if (err) {
             console.error('Error updating user points and level:', err);
-            return res.status(500).json({ error: 'Failed to update user points and level' });
+            return res.status(500).json({ error: err });
         }
         res.json({ message: 'User points and level updated successfully' });
     });
 };
-const getUserByUsername = (req, res) => {
-    const username = req.params.username;
-
-    userModel.getUserByUsername(username, (err, results) => {
-        if (err) {
-            console.error('Error fetching user data:', err);
-            return res.status(500).json({ error: 'Failed to fetch user data' });
-        }
-        if (results.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        res.json(results[0]);
-    });
-};
 
 module.exports = {
-    getUserData,
     getUsersWithPoints,
-    updateUserPointsAndLevel,
-    getUserByUsername,
+    getUserData,
+    updateUserPointsAndLevel
 };

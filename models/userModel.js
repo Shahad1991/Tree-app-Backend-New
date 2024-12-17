@@ -7,20 +7,6 @@ const createUser = (name, hashedPassword, email, phone, callback) => {
     `;
     db.query(userSql, [name, hashedPassword, email, phone], callback);
 };
-const createUserWithFirebase = (user, callback) => {
-    const userSql = `
-        INSERT INTO users (firebase_uid, name, email)
-        VALUES (?, ?, ?)
-    `;
-    db.query(userSql, [user.uid, user.name, user.email], callback);
-};
-
-const getUserByFirebaseUid = (uid, callback) => {
-    const userSql = `
-        SELECT * FROM users WHERE firebase_uid = ?
-    `;
-    db.query(userSql, [uid], callback);
-};
 
 const createUserLevel = (userId, callback) => {
     const levelSql = `
@@ -38,23 +24,40 @@ const createUserPoints = (userId, callback) => {
     db.query(pointsSql, [userId, 0], callback);
 };
 
+const getUserById = (userId, callback) => {
+    const userSql = `
+        SELECT u.user_id AS id, u.name, u.email, u.phone, l.level, p.points
+        FROM users u
+        JOIN user_levels l ON u.user_id = l.user_id
+        JOIN user_points p ON u.user_id = p.user_id
+        WHERE u.user_id = ?
+    `;
+    db.query(userSql, [userId], callback);
+};
+
 const getUserByName = (name, callback) => {
     const userSql = `
-        SELECT * FROM users WHERE name = ?
+        SELECT user_id, name, email, phone, password 
+        FROM users 
+        WHERE LOWER(name) = LOWER(?);
     `;
     db.query(userSql, [name], callback);
 };
 
 const getUserLevel = (userId, callback) => {
     const levelSql = `
-        SELECT level FROM user_levels WHERE user_id = ?
+        SELECT level
+        FROM user_levels
+        WHERE user_id = ?
     `;
     db.query(levelSql, [userId], callback);
 };
 
 const getUserPoints = (userId, callback) => {
     const pointsSql = `
-        SELECT points FROM user_points WHERE user_id = ?
+        SELECT points
+        FROM user_points
+        WHERE user_id = ?
     `;
     db.query(pointsSql, [userId], callback);
 };
@@ -70,17 +73,6 @@ const getUsersWithPoints = (callback) => {
     db.query(userSql, callback);
 };
 
-const getUserById = (userId, callback) => {
-    const userSql = `
-        SELECT u.user_id AS id, u.name, u.email, u.phone, l.level, p.points
-        FROM users u
-        JOIN user_levels l ON u.user_id = l.user_id
-        JOIN user_points p ON u.user_id = p.user_id
-        WHERE u.user_id = ?
-    `;
-    db.query(userSql, [userId], callback);
-};
-
 const updateUserPointsAndLevel = (userId, points, level, callback) => {
     const updateLevelSql = `
         UPDATE user_levels SET level = ? WHERE user_id = ?
@@ -93,26 +85,15 @@ const updateUserPointsAndLevel = (userId, points, level, callback) => {
         db.query(updatePointsSql, [points, userId], callback);
     });
 };
-const getUserByUsername = (username, callback) => {
-    const userSql = `
-        SELECT user_id AS id, name, email, phone, level, points
-        FROM user_details
-        WHERE name = ?
-    `;
-    db.query(userSql, [username], callback);
-};
 
 module.exports = {
     createUser,
-    createUserWithFirebase,
-    getUserByFirebaseUid,
     createUserLevel,
     createUserPoints,
+    getUserById,
     getUserByName,
     getUserLevel,
     getUserPoints,
     getUsersWithPoints,
-    getUserById,
-    getUserByUsername,
     updateUserPointsAndLevel
 };
